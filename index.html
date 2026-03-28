@@ -109,6 +109,19 @@
   .b-other  { background: rgba(200,200,200,0.08);color: #aaa;    border: 1px solid rgba(200,200,200,0.15); }
 
   .price { font-family: var(--font-mono); font-size: 12px; color: var(--accent2); white-space: nowrap; }
+  tr { cursor:pointer; }
+  tr:hover td { background: var(--surface2); }
+  .row-popup { display:none; position:fixed; z-index:100; background:var(--surface2); border:1px solid var(--border2); border-radius:10px; padding:16px 20px; box-shadow:0 8px 32px rgba(0,0,0,0.4); min-width:260px; }
+  .row-popup.active { display:block; }
+  .row-popup-title { font-family:var(--font-mono); font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; }
+  .row-popup-car { font-family:var(--font-head); font-size:14px; color:var(--text); margin-bottom:14px; }
+  .row-popup-btns { display:flex; gap:10px; }
+  .btn-vk { display:inline-flex;align-items:center;gap:6px;background:rgba(200,240,74,0.12);border:1px solid rgba(200,240,74,0.3);border-radius:8px;padding:8px 16px;color:var(--accent);text-decoration:none;font-family:var(--font-mono);font-size:12px;white-space:nowrap;transition:background 0.15s; }
+  .btn-tg  { display:inline-flex;align-items:center;gap:6px;background:rgba(91,232,200,0.1);border:1px solid rgba(91,232,200,0.3);border-radius:8px;padding:8px 16px;color:var(--accent2);text-decoration:none;font-family:var(--font-mono);font-size:12px;white-space:nowrap;transition:background 0.15s; }
+  .btn-vk:hover { background:rgba(200,240,74,0.22); }
+  .btn-tg:hover { background:rgba(91,232,200,0.2); }
+  .row-popup-close { position:absolute;top:10px;right:12px;cursor:pointer;color:var(--muted);font-size:16px;line-height:1; }
+  .row-popup-close:hover { color:var(--text); }
   .price-yuan { font-family: var(--font-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
   .empty { text-align: center; padding: 3rem; color: var(--muted); font-family: var(--font-mono); font-size: 13px; }
   .loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 3rem; color: var(--muted); font-family: var(--font-mono); font-size: 13px; }
@@ -403,6 +416,9 @@ function renderTable(data) {
 }
 
 function rowHtml(d) {
+  const msg = encodeURIComponent(`Здравствуйте! Хочу сделать заявку на автомобиль: ${d.brand} ${d.model}${d.engine ? ', ' + d.engine : ''}${d.body ? ', ' + d.body : ''}.`);
+  const vkUrl = `https://vk.com/im?sel=-abappru&text=${msg}`;
+  const tgUrl = `https://t.me/abappconnect?text=${msg}`;
   return `<tr>
     <td style="color:var(--muted);font-size:12px;">${d.country||'—'}</td>
     <td class="brand">${d.brand}</td>
@@ -417,6 +433,7 @@ function rowHtml(d) {
     <td class="price">${fmt(d.aleksandrov)}</td>
     <td class="price-yuan">${fmtY(d.yuan)}</td>
   </tr>`;
+  // attach click after render via event delegation (handled globally)
 }
 
 function renderStats(data) {
@@ -441,6 +458,36 @@ function resetFilters() {
   sortDir = 1;
   applyFilters();
 }
+
+function closePopup() {
+  document.getElementById('rowPopup').classList.remove('active');
+}
+
+document.addEventListener('click', function(e) {
+  const popup = document.getElementById('rowPopup');
+  const tr = e.target.closest('tbody tr');
+  if (tr && !e.target.closest('a')) {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length < 4) return;
+    const brand  = cells[1].textContent.trim();
+    const model  = cells[2].textContent.trim();
+    const engine = cells[3].textContent.trim();
+    const body   = cells[6].textContent.trim();
+    const msg = encodeURIComponent(`Здравствуйте! Хочу сделать заявку на автомобиль: ${brand} ${model}${engine && engine!=='—' ? ', '+engine : ''}${body && body!=='—' ? ', '+body : ''}.`);
+    document.getElementById('popupCar').textContent = `${brand} ${model}`;
+    document.getElementById('popupVk').href = `https://vk.com/im?sel=-abappru&text=${msg}`;
+    document.getElementById('popupTg').href = `https://t.me/abappconnect?text=${msg}`;
+    // Position near click
+    const x = Math.min(e.clientX + 10, window.innerWidth - 300);
+    const y = Math.min(e.clientY + 10, window.innerHeight - 160);
+    popup.style.left = x + 'px';
+    popup.style.top  = y + 'px';
+    popup.classList.add('active');
+    e.stopPropagation();
+  } else if (!e.target.closest('#rowPopup')) {
+    closePopup();
+  }
+});
 
 async function init() {
   try {
@@ -474,5 +521,20 @@ async function init() {
 }
 init();
 </script>
+<div class="row-popup" id="rowPopup">
+  <span class="row-popup-close" onclick="closePopup()">✕</span>
+  <div class="row-popup-title">Оставить заявку</div>
+  <div class="row-popup-car" id="popupCar"></div>
+  <div class="row-popup-btns">
+    <a id="popupVk" href="#" target="_blank" class="btn-vk">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.525-2.049-1.713-1.033-1.01-1.49-1.135-1.745-1.135-.356 0-.458.102-.458.593v1.558c0 .424-.135.678-1.253.678-1.846 0-3.896-1.118-5.336-3.202C4.624 10.857 4 8.408 4 7.932c0-.254.102-.491.593-.491h1.744c.44 0 .61.203.78.677.864 2.49 2.303 4.675 2.896 4.675.22 0 .322-.102.322-.66V9.467c-.068-1.186-.695-1.287-.695-1.71 0-.204.17-.407.44-.407h2.744c.372 0 .508.203.508.643v3.473c0 .372.17.508.271.508.22 0 .407-.136.813-.542 1.253-1.406 2.151-3.574 2.151-3.574.119-.254.322-.491.763-.491h1.744c.525 0 .644.27.525.643-.22 1.017-2.354 4.031-2.354 4.031-.186.305-.254.44 0 .78.186.254.796.779 1.203 1.253.745.847 1.32 1.558 1.473 2.049.17.474-.085.712-.609.712z"/></svg>
+      ВКонтакте
+    </a>
+    <a id="popupTg" href="#" target="_blank" class="btn-tg">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      Telegram
+    </a>
+  </div>
+</div>
 </body>
 </html>
