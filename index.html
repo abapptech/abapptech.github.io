@@ -178,6 +178,7 @@
     <input type="text" id="search" placeholder="Поиск по марке или модели...">
     <select id="fCountry"><option value="">Все страны</option></select>
     <select id="fBrand"><option value="">Все бренды</option></select>
+    <select id="fModel"><option value="">Все модели</option></select>
     <select id="fEngine"><option value="">Объём ДВС</option></select>
     <select id="fDrive"><option value="">Привод</option></select>
     <select id="fTrans"><option value="">Трансмиссия</option></select>
@@ -325,7 +326,7 @@ function inRange(val, min, max) {
 function applyFilters() {
   const search  = gv('search').toLowerCase();
   const country = gv('fCountry'), brand = gv('fBrand'), body = gv('fBody');
-  const drive   = gv('fDrive'),   trans = gv('fTrans'), engine = gv('fEngine');
+  const drive   = gv('fDrive'),   trans = gv('fTrans'), engine = gv('fEngine'), model = gv('fModel');
   const kMin = gn('pKyakhtaMin'),    kMax = gn('pKyakhtaMax');
   const zMin = gn('pZabaikalskMin'), zMax = gn('pZabaikalskMax');
   const uMin = gn('pUssuriyskMin'),  uMax = gn('pUssuriyskMax');
@@ -340,6 +341,7 @@ function applyFilters() {
     if (drive   && d.drive   !== drive)   return false;
     if (trans   && d.trans   !== trans)   return false;
     if (engine  && d.engine  !== engine)  return false;
+    if (model   && d.model   !== model)   return false;
     if (!inRange(d.kyakhta,    kMin, kMax)) return false;
     if (!inRange(d.zabaikalsk, zMin, zMax)) return false;
     if (!inRange(d.ussuriysk,  uMin, uMax)) return false;
@@ -427,7 +429,7 @@ function setSort(col) { sortDir = sortCol===col ? sortDir*-1 : 1; sortCol=col; a
 
 function resetFilters() {
   document.getElementById('search').value = '';
-  ['fCountry','fBrand','fEngine','fDrive','fTrans','fBody'].forEach(id => {
+  ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody'].forEach(id => {
     document.getElementById(id).value = '';
   });
   ['pKyakhtaMin','pKyakhtaMax','pZabaikalskMin','pZabaikalskMax',
@@ -445,11 +447,23 @@ async function init() {
     allData = await loadData();
     populateSelect('fCountry', allData.map(d=>d.country));
     populateSelect('fBrand',   allData.map(d=>d.brand));
+    populateSelect('fModel',   allData.map(d=>d.model));
     populateSelect('fBody',    allData.map(d=>d.body));
     populateSelect('fDrive',   allData.map(d=>d.drive));
     populateSelect('fTrans',   allData.map(d=>d.trans));
     populateSelect('fEngine',  allData.map(d=>d.engine));
-    ['search','fCountry','fBrand','fBody','fDrive','fTrans','fEngine'].forEach(id => {
+
+    document.getElementById('fBrand').addEventListener('change', () => {
+      const brand = gv('fBrand');
+      const models = brand
+        ? allData.filter(d => d.brand === brand).map(d => d.model)
+        : allData.map(d => d.model);
+      populateSelect('fModel', models);
+      document.getElementById('fModel').value = '';
+      applyFilters();
+    });
+
+    ['search','fCountry','fModel','fBody','fDrive','fTrans','fEngine'].forEach(id => {
       document.getElementById(id).addEventListener(id==='search'?'input':'change', applyFilters);
     });
     applyFilters();
