@@ -277,36 +277,9 @@ async function loadRates() {
   } catch(e) {}
 }
 
-// ── Утильсбор (проходной 3-5 лет) ───────────────────────────────────────────
-const UB_UTIL = 20000;
-const ICE_u2 = [
-  {mx:117.68,f:0.26},{mx:139.75,f:74.64},{mx:161.81,f:79.2},
-  {mx:183.88,f:83.88},{mx:205.94,f:91.92},{mx:228.0,f:100.56},
-  {mx:250.07,f:110.16},{mx:272.13,f:120.6},{mx:294.2,f:132.0},
-  {mx:316.26,f:144.6},{mx:338.33,f:158.4},{mx:367.75,f:173.4},
-  {mx:1e9,f:189.84},
-];
-const ICE_u3 = [
-  {mx:117.68,f:0.26},{mx:139.75,f:172.8},{mx:161.81,f:175.08},
-  {mx:183.88,f:177.6},{mx:205.94,f:183.0},{mx:228.0,f:188.52},
-  {mx:250.07,f:193.68},{mx:272.13,f:199.08},{mx:294.2,f:204.72},
-  {mx:316.26,f:210.48},{mx:338.33,f:216.36},{mx:367.75,f:222.36},
-  {mx:1e9,f:228.6},
-];
-function _util(cc, kw) {
-  const t = cc <= 2000 ? ICE_u2 : ICE_u3;
-  for (const r of t) if (kw <= r.mx) return r.f * UB_UTIL;
-  return t[t.length-1].f * UB_UTIL;
-}
-function _duty(cc, rEur) {
-  const r = cc>=3000?3.6:cc>2300?3:cc>1800?2.7:cc>1500?2.5:cc>1000?1.7:1.5;
-  return r * cc * rEur;
-}
-function _clear(pCny, rV) {
-  const r = pCny * rV;
-  return r<=200000?1231:r<=450000?2462:r<=1200000?4924:r<=2700000?13541:
-         r<=4200000?18465:r<=5500000?21344:r<=10000000?49240:73860;
-}
+// ── Worker API ────────────────────────────────────────────────────────────────
+const WORKER_URL = 'https://abapp-calc.donditov.workers.dev/calc';
+
 function parseCC(s) {
   if (!s) return 1500;
   const l = String(s).toLowerCase();
@@ -318,21 +291,32 @@ function parseCC(s) {
   if (num) return parseInt(num[1]);
   return 1500;
 }
-function calcPrices(pCny, cc, kw) {
-  const rV      = vtbRate;
-  const rE      = eurRate;
-  const comm    = 11000;         // комиссия Abapp ¥
-  const delivery = 4000;        // фиксированная перевозка по КНР ¥
-  const ovhd    = pCny * 0.005; // накладные 0.5%
-  const tax     = _duty(cc, rE) + _clear(pCny, rV) + _util(cc, kw);
-  const rMnt    = 0.0227417 * 1.03;
-  return {
-    zabaikalsk:  Math.round((pCny + ovhd + delivery + 5000  + comm) * rV + 85000 + tax),
-    aleksandrov: Math.round((pCny + ovhd + delivery + 14500 + comm) * rV + 90000 + tax),
-    ussuriysk:   Math.round((pCny + ovhd + delivery + 3000  + comm) * rV + 55000 + tax),
-    kyakhta:     Math.round((pCny + ovhd + delivery + 2300  + comm) * rV + 82500 + tax
-                            + (50000 + 900000) * rMnt + 70000),
-  };
+
+async function calcPrices(pCny, cc, kw) {
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': 'https://abappcn.ru' },
+      body: JSON.stringify({
+        pCny, pMax: pCny,
+        rVtb: vtbRate, rCbr: 0, rEur: eurRate,
+        etype: 'ice', age: 'mid',
+        cc, kw, emKw: 0,
+        comm: 11000,
+        deliveryManual: 0, deliveryIncluded: false, toBorderOnly: false,
+        distMan: 0, distErl: 0, distSui: 0, distHor: 0,
+      }),
+    });
+    const d = await res.json();
+    return {
+      zabaikalsk:  d.zabaikalsk,
+      aleksandrov: d.alexandrov,
+      ussuriysk:   d.ussuriysk,
+      kyakhta:     d.kyakEvac,
+    };
+  } catch(e) {
+    return null;
+  }
 }
 
 async function loadData() {
@@ -361,7 +345,7 @@ async function loadData() {
     // Расчёт цен через формулы калькулятора (перевозка по КНР 4000 ¥)
     const _cc  = parseCC(val(4));   // объём из строки типа "1.5L"
     const _kw  = 110;               // 110 кВт по умолчанию (≈ 150 л.с.)
-    const _p   = yuan ? calcPrices(yuan, _cc, _kw) : null;
+    const _p   = yuan ? await calcPrices(yuan, _cc, _kw) : null;
     const kyakhta     = _p ? _p.kyakhta     : num(8);
     const zabaikalsk  = _p ? _p.zabaikalsk  : num(9);
     const ussuriysk   = _p ? _p.ussuriysk   : num(10);
