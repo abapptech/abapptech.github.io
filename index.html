@@ -325,43 +325,48 @@ async function loadData() {
   const text = await res.text();
   const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
   const rows = json.table.rows;
-  const data = [];
+
+  // ── Сначала парсим все строки синхронно ──
+  const candidates = [];
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i] && rows[i].c ? rows[i].c : null;
     if (!r) continue;
     const val = v => r[v] && r[v].v !== null ? String(r[v].v).trim() : '';
     const num = v => r[v] && r[v].v !== null ? Number(r[v].v) : null;
-
     const country = val(1);
     const brand   = val(2);
-    const model   = val(3);
-
-    // Пропускаем строки без марки или без страны (заголовки, разделители)
     if (!brand || !country) continue;
-    // Пропускаем если страна содержит служебный текст
     if (country.toLowerCase().includes('страна') || country.toLowerCase().includes('бренд')) continue;
-
-    const yuan = num(12);
-    // Расчёт цен через формулы калькулятора (перевозка по КНР 4000 ¥)
-    const _cc  = parseCC(val(4));   // объём из строки типа "1.5L"
-    const _kw  = 110;               // 110 кВт по умолчанию (≈ 150 л.с.)
-    const _p   = yuan ? await calcPrices(yuan, _cc, _kw) : null;
-    const kyakhta     = _p ? _p.kyakhta     : num(8);
-    const zabaikalsk  = _p ? _p.zabaikalsk  : num(9);
-    const ussuriysk   = _p ? _p.ussuriysk   : num(10);
-    const aleksandrov = _p ? _p.aleksandrov : num(11);
-
-    // Пропускаем строки-разделители (СЕДАНЫ, SUV и т.д.) — нет ни одной цены
-    if (kyakhta === null && zabaikalsk === null && ussuriysk === null && aleksandrov === null) continue;
-
-    data.push({
-      country, brand, model,
+    candidates.push({
+      country, brand,
+      model:  val(3),
       engine: val(4),
       drive:  val(5),
       trans:  val(6),
       body:   val(7),
-      kyakhta, zabaikalsk, ussuriysk, aleksandrov, yuan
+      yuan:   num(12),
+      fb8: num(8), fb9: num(9), fb10: num(10), fb11: num(11),
     });
+  }
+
+  // ── Все запросы к Worker параллельно ──
+  const prices = await Promise.all(
+    candidates.map(c => c.yuan ? calcPrices(c.yuan, parseCC(c.engine), 110) : Promise.resolve(null))
+  );
+
+  // ── Собираем итоговый массив ──
+  const data = [];
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i];
+    const _p = prices[i];
+    const kyakhta     = _p ? _p.kyakhta     : c.fb8;
+    const zabaikalsk  = _p ? _p.zabaikalsk  : c.fb9;
+    const ussuriysk   = _p ? _p.ussuriysk   : c.fb10;
+    const aleksandrov = _p ? _p.aleksandrov : c.fb11;
+    if (kyakhta === null && zabaikalsk === null && ussuriysk === null && aleksandrov === null) continue;
+    data.push({ country: c.country, brand: c.brand, model: c.model,
+      engine: c.engine, drive: c.drive, trans: c.trans, body: c.body,
+      kyakhta, zabaikalsk, ussuriysk, aleksandrov, yuan: c.yuan });
   }
   return data;
 }
