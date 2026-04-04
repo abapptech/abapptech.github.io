@@ -172,7 +172,7 @@
     </div>
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
-
+    <div id="rateIndicator" style="font-family:var(--font-mono);font-size:10px;color:var(--muted);"></div>
     <div style="display:flex;gap:10px;">
       <a href="https://abappcn.ru/calculator/" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:rgba(200,240,74,0.08);border:1px solid rgba(200,240,74,0.25);border-radius:8px;padding:8px 16px;color:var(--accent);text-decoration:none;font-family:var(--font-mono);font-size:12px;font-weight:500;transition:background 0.15s;" onmouseover="this.style.background='rgba(200,240,74,0.15)'" onmouseout="this.style.background='rgba(200,240,74,0.08)'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
@@ -260,6 +260,81 @@ const SHEET_ID = '1OCAUO9TqknVBZMmyUB9BatgX9m6ydwBXa0TIK_1eGPo';
 let allData = [];
 let sortCol = null, sortDir = 1;
 
+// ── Курсы валют ──────────────────────────────────────────────────────────────
+let vtbRate = 11.8;
+let eurRate = 92.0;
+
+async function loadRates() {
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch('https://raw.githubusercontent.com/abapptech/vtb-rate/main/vtb_rate.json').then(r=>r.json()),
+      fetch('https://www.cbr-xml-daily.ru/daily_json.js').then(r=>r.json()),
+    ]);
+    if (r1.sell) vtbRate = parseFloat(r1.sell);
+    if (r2.Valute && r2.Valute.EUR) eurRate = r2.Valute.EUR.Value;
+    const el = document.getElementById('rateIndicator');
+    if (el) el.textContent = `ВТБ: ${vtbRate.toFixed(2)} ₽/¥ · EUR: ${eurRate.toFixed(2)} ₽`;
+  } catch(e) {}
+}
+
+// ── Утильсбор (проходной 3-5 лет) ───────────────────────────────────────────
+const UB_UTIL = 20000;
+const ICE_u2 = [
+  {mx:117.68,f:0.26},{mx:139.75,f:74.64},{mx:161.81,f:79.2},
+  {mx:183.88,f:83.88},{mx:205.94,f:91.92},{mx:228.0,f:100.56},
+  {mx:250.07,f:110.16},{mx:272.13,f:120.6},{mx:294.2,f:132.0},
+  {mx:316.26,f:144.6},{mx:338.33,f:158.4},{mx:367.75,f:173.4},
+  {mx:1e9,f:189.84},
+];
+const ICE_u3 = [
+  {mx:117.68,f:0.26},{mx:139.75,f:172.8},{mx:161.81,f:175.08},
+  {mx:183.88,f:177.6},{mx:205.94,f:183.0},{mx:228.0,f:188.52},
+  {mx:250.07,f:193.68},{mx:272.13,f:199.08},{mx:294.2,f:204.72},
+  {mx:316.26,f:210.48},{mx:338.33,f:216.36},{mx:367.75,f:222.36},
+  {mx:1e9,f:228.6},
+];
+function _util(cc, kw) {
+  const t = cc <= 2000 ? ICE_u2 : ICE_u3;
+  for (const r of t) if (kw <= r.mx) return r.f * UB_UTIL;
+  return t[t.length-1].f * UB_UTIL;
+}
+function _duty(cc, rEur) {
+  const r = cc>=3000?3.6:cc>2300?3:cc>1800?2.7:cc>1500?2.5:cc>1000?1.7:1.5;
+  return r * cc * rEur;
+}
+function _clear(pCny, rV) {
+  const r = pCny * rV;
+  return r<=200000?1231:r<=450000?2462:r<=1200000?4924:r<=2700000?13541:
+         r<=4200000?18465:r<=5500000?21344:r<=10000000?49240:73860;
+}
+function parseCC(s) {
+  if (!s) return 1500;
+  const l = String(s).toLowerCase();
+  const lit = l.match(/(\d+[.,]\d+)\s*l/);
+  if (lit) return Math.round(parseFloat(lit[1].replace(',','.')) * 1000);
+  const cc  = l.match(/(\d{3,4})\s*cc/);
+  if (cc)  return parseInt(cc[1]);
+  const num = l.match(/\b(\d{3,4})\b/);
+  if (num) return parseInt(num[1]);
+  return 1500;
+}
+function calcPrices(pCny, cc, kw) {
+  const rV      = vtbRate;
+  const rE      = eurRate;
+  const comm    = 11000;         // комиссия Abapp ¥
+  const delivery = 4000;        // фиксированная перевозка по КНР ¥
+  const ovhd    = pCny * 0.005; // накладные 0.5%
+  const tax     = _duty(cc, rE) + _clear(pCny, rV) + _util(cc, kw);
+  const rMnt    = 0.0227417 * 1.03;
+  return {
+    zabaikalsk:  Math.round((pCny + ovhd + delivery + 5000  + comm) * rV + 85000 + tax),
+    aleksandrov: Math.round((pCny + ovhd + delivery + 14500 + comm) * rV + 90000 + tax),
+    ussuriysk:   Math.round((pCny + ovhd + delivery + 3000  + comm) * rV + 55000 + tax),
+    kyakhta:     Math.round((pCny + ovhd + delivery + 2300  + comm) * rV + 82500 + tax
+                            + (50000 + 900000) * rMnt + 70000),
+  };
+}
+
 async function loadData() {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
   const res = await fetch(url);
@@ -282,11 +357,15 @@ async function loadData() {
     // Пропускаем если страна содержит служебный текст
     if (country.toLowerCase().includes('страна') || country.toLowerCase().includes('бренд')) continue;
 
-    const kyakhta     = num(8);
-    const zabaikalsk  = num(9);
-    const ussuriysk   = num(10);
-    const aleksandrov = num(11);
-    const yuan        = num(12);
+    const yuan = num(12);
+    // Расчёт цен через формулы калькулятора (перевозка по КНР 4000 ¥)
+    const _cc  = parseCC(val(4));   // объём из строки типа "1.5L"
+    const _kw  = 110;               // 110 кВт по умолчанию (≈ 150 л.с.)
+    const _p   = yuan ? calcPrices(yuan, _cc, _kw) : null;
+    const kyakhta     = _p ? _p.kyakhta     : num(8);
+    const zabaikalsk  = _p ? _p.zabaikalsk  : num(9);
+    const ussuriysk   = _p ? _p.ussuriysk   : num(10);
+    const aleksandrov = _p ? _p.aleksandrov : num(11);
 
     // Пропускаем строки-разделители (СЕДАНЫ, SUV и т.д.) — нет ни одной цены
     if (kyakhta === null && zabaikalsk === null && ussuriysk === null && aleksandrov === null) continue;
@@ -513,6 +592,7 @@ document.addEventListener('click', function(e) {
 
 async function init() {
   try {
+    await loadRates();
     allData = await loadData();
     populateSelect('fCountry', allData.map(d=>d.country));
     populateSelect('fBrand',   allData.map(d=>d.brand));
