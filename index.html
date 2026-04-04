@@ -270,7 +270,7 @@ async function loadRates() {
       fetch('https://raw.githubusercontent.com/abapptech/vtb-rate/main/vtb_rate.json').then(r=>r.json()),
       fetch('https://www.cbr-xml-daily.ru/daily_json.js').then(r=>r.json()),
     ]);
-    if (r1.sell) vtbRate = parseFloat(r1.sell);
+    if (r1.cny_sell) vtbRate = parseFloat(r1.cny_sell);
     if (r2.Valute && r2.Valute.EUR) eurRate = r2.Valute.EUR.Value;
     const el = document.getElementById('rateIndicator');
     if (el) el.textContent = `ВТБ: ${vtbRate.toFixed(2)} ₽/¥ · EUR: ${eurRate.toFixed(2)} ₽`;
