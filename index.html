@@ -283,7 +283,7 @@ const WORKER_URL = 'https://abapp-calc.donditov.workers.dev/calc';
 function parseCC(s) {
   if (!s) return 1500;
   const l = String(s).toLowerCase();
-  const lit = l.match(/(\d+[.,]\d+)\s*l/);
+  const lit = l.match(/(\d+[.,]\d+)\s*[lLtT]?\b/);
   if (lit) return Math.round(parseFloat(lit[1].replace(',','.')) * 1000);
   const cc  = l.match(/(\d{3,4})\s*cc/);
   if (cc)  return parseInt(cc[1]);
