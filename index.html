@@ -82,7 +82,7 @@
   .stat-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 4px; }
   .stat-val { font-family: var(--font-mono); font-size: 18px; font-weight: 500; color: var(--accent); }
 
-  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  .table-wrap { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 160px); border-radius: 10px; border: 1px solid var(--border); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   thead { position: sticky; top: 0; z-index: 2; }
   th {
