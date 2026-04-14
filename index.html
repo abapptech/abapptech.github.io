@@ -172,7 +172,7 @@
     </div>
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
-    <div id="rateIndicator" style="font-family:var(--font-mono);font-size:10px;color:var(--muted);"></div>
+    <div id="rateIndicator" style="font-family:var(--font-mono);font-size:10px;color:var(--text);display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;align-items:center;"></div>
     <div style="display:flex;gap:10px;">
       <a href="https://abappcn.ru/calculator/" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:rgba(200,240,74,0.08);border:1px solid rgba(200,240,74,0.25);border-radius:8px;padding:8px 16px;color:var(--accent);text-decoration:none;font-family:var(--font-mono);font-size:12px;font-weight:500;transition:background 0.15s;" onmouseover="this.style.background='rgba(200,240,74,0.15)'" onmouseout="this.style.background='rgba(200,240,74,0.08)'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
@@ -263,6 +263,8 @@ let sortCol = null, sortDir = 1;
 // ── Курсы валют ──────────────────────────────────────────────────────────────
 let vtbRate = 11.8;
 let eurRate = 92.0;
+let usdRate = 85.0;
+let cnyCbrRate = 11.5;
 
 async function loadRates() {
   try {
@@ -272,8 +274,18 @@ async function loadRates() {
     ]);
     if (r1.cny_sell) vtbRate = parseFloat(r1.cny_sell);
     if (r2.Valute && r2.Valute.EUR) eurRate = r2.Valute.EUR.Value;
+    if (r2.Valute && r2.Valute.USD) usdRate = r2.Valute.USD.Value;
+    if (r2.Valute && r2.Valute.CNY) cnyCbrRate = r2.Valute.CNY.Value;
     const el = document.getElementById('rateIndicator');
-    if (el) el.textContent = `ВТБ: ${vtbRate.toFixed(2)} ₽/¥ · EUR: ${eurRate.toFixed(2)} ₽`;
+    if (el) el.innerHTML = `
+      <span style="color:var(--accent)">ВТБ ¥ ${vtbRate.toFixed(2)} ₽</span>
+      <span style="color:var(--muted);margin:0 4px">·</span>
+      <span>ЦБ ¥ ${cnyCbrRate.toFixed(2)} ₽</span>
+      <span style="color:var(--muted);margin:0 4px">·</span>
+      <span>ЦБ $ ${usdRate.toFixed(2)} ₽</span>
+      <span style="color:var(--muted);margin:0 4px">·</span>
+      <span>ЦБ € ${eurRate.toFixed(2)} ₽</span>
+    `;
   } catch(e) {}
 }
 
