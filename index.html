@@ -311,7 +311,7 @@ async function calcPrices(pCny, cc, kw) {
       headers: { 'Content-Type': 'application/json', 'Origin': 'https://abappcn.ru' },
       body: JSON.stringify({
         pCny, pMax: pCny,
-        rVtb: vtbRate, rCbr: 0, rEur: eurRate,
+        rVtb: vtbRate, rCbr: cnyCbrRate, rEur: eurRate,
         etype: 'ice', age: 'mid',
         cc, kw, emKw: 0,
         comm: 11000,
