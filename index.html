@@ -421,62 +421,33 @@ async function calcPrices(pCny, cc, kw) {
 }
 
 async function loadData() {
-  // ── Используем встроенные данные если есть ──
-  if (EMBEDDED_DATA && EMBEDDED_DATA.length > 0) {
-    allData = EMBEDDED_DATA;
-    return allData;
+  // Если данные вшиты — возвращаем сразу
+  if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA.length > 0) {
+    return EMBEDDED_DATA;
   }
-  // ── Fallback: загрузка из Google Sheets ──
+  // Fallback — Google Sheets
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
   const res = await fetch(url);
   const text = await res.text();
   const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
   const rows = json.table.rows;
-  const candidates = [];
+  const result = [];
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i] && rows[i].c ? rows[i].c : null;
     if (!r) continue;
     const val = v => r[v] && r[v].v !== null ? String(r[v].v).trim() : '';
     const num = v => r[v] && r[v].v !== null ? Number(r[v].v) : null;
-    const country = val(1);
-    const brand   = val(2);
+    const country = val(1), brand = val(2);
     if (!brand || !country) continue;
     if (country.toLowerCase().includes('страна') || country.toLowerCase().includes('бренд')) continue;
-    candidates.push({
-      country, brand,
-      model:      val(3),
-      engine:     val(4),
-      drive:      val(5),
-      trans:      val(6),
-      body:       val(7),
-      kyakhta:    num(8),
-      zabaikalsk: num(9),
-      ussuriysk:  num(10),
-      aleksandrov:num(11),
-      yuan:       num(12),
+    result.push({ country, brand,
+      model: val(3), engine: val(4), drive: val(5), trans: val(6), body: val(7),
+      kyakhta: num(8), zabaikalsk: num(9), ussuriysk: num(10), aleksandrov: num(11), yuan: num(12)
     });
   }
-  // Calc prices async
-  for (const c of candidates) {
-    const cc = parseCC(c.engine);
-    const kw = 110;
-    const pCny = c.yuan;
-    if (pCny && cc) {
-      try {
-        const p = await calcPrices(pCny, cc, kw);
-        c.kyakhta    = p.kyakhta    ?? c.kyakhta;
-        c.zabaikalsk = p.zabaikalsk ?? c.zabaikalsk;
-        c.ussuriysk  = p.ussuriysk  ?? c.ussuriysk;
-        c.aleksandrov= p.aleksandrov?? c.aleksandrov;
-      } catch(e) {}
-    }
-    allData.push({ country: c.country, brand: c.brand, model: c.model,
-      engine: c.engine, drive: c.drive, trans: c.trans, body: c.body,
-      kyakhta: c.kyakhta, zabaikalsk: c.zabaikalsk,
-      ussuriysk: c.ussuriysk, aleksandrov: c.aleksandrov, yuan: c.yuan });
-  }
-  return allData;
+  return result;
 }
+
 
 async function init() {
   try {
