@@ -791,7 +791,7 @@ init();
       btn.disabled = false;
       btn.textContent = 'Отправить заявку';
     }).catch((err) => {
-      console.error('EmailJS error:', err);
+      console.error('EmailJS error:', JSON.stringify(err), err.status, err.text, err.message);
       showCfError('Ошибка отправки: ' + (err.text || err.message || JSON.stringify(err)));
       btn.disabled = false;
       btn.textContent = 'Отправить заявку';
