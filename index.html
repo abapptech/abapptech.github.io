@@ -167,7 +167,7 @@
     td:nth-child(8) .price, td:nth-child(8) { font-size: 13px; }
 
     /* Фильтры скрыты по умолчанию на мобиле */
-    #filters-wrap { display: none; pointer-events: none; }
+    #filters-wrap { visibility: hidden; height: 0; overflow: hidden; margin: 0; padding: 0; pointer-events: none; }
     #filters-toggle { display: block !important; }
     #mobile-top-bar { display: flex !important; }
     /* Скрываем десктопный блок со статистикой и кнопкой на мобиле */
@@ -801,13 +801,17 @@ document.addEventListener('click', function(e) {
 function toggleFilters() {
   const wrap = document.getElementById('filters-wrap');
   const btn = document.getElementById('filters-toggle');
-  const visible = wrap.style.display !== 'none';
+  const visible = wrap.style.visibility !== 'hidden' && wrap.style.height !== '0px';
   if (visible) {
-    wrap.style.display = 'none';
+    wrap.style.visibility = 'hidden';
+    wrap.style.height = '0';
+    wrap.style.overflow = 'hidden';
     wrap.style.pointerEvents = 'none';
     btn.textContent = '🔍 Фильтры ▼';
   } else {
-    wrap.style.display = 'block';
+    wrap.style.visibility = 'visible';
+    wrap.style.height = 'auto';
+    wrap.style.overflow = 'visible';
     wrap.style.pointerEvents = 'auto';
     btn.textContent = '🔍 Фильтры ▲';
   }
@@ -815,14 +819,19 @@ function toggleFilters() {
 
 function initMobile() {
   const btn = document.getElementById('filters-toggle');
+  const wrap = document.getElementById('filters-wrap');
   if (window.innerWidth <= 600) {
     btn.style.display = 'block';
-    document.getElementById('filters-wrap').style.display = 'none';
-    document.getElementById('filters-wrap').style.pointerEvents = 'none';
+    wrap.style.visibility = 'hidden';
+    wrap.style.height = '0';
+    wrap.style.overflow = 'hidden';
+    wrap.style.pointerEvents = 'none';
   } else {
     btn.style.display = 'none';
-    document.getElementById('filters-wrap').style.display = 'block';
-    document.getElementById('filters-wrap').style.pointerEvents = 'auto';
+    wrap.style.visibility = 'visible';
+    wrap.style.height = 'auto';
+    wrap.style.overflow = 'visible';
+    wrap.style.pointerEvents = 'auto';
   }
 }
 
