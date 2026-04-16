@@ -113,7 +113,7 @@
   .price { font-family: var(--font-mono); font-size: 12px; color: var(--accent2); white-space: nowrap; }
   tr { cursor:pointer; }
   tr:hover td { background: var(--surface2); }
-  .row-popup { display:none; position:fixed; z-index:100; background:var(--surface2); border:1px solid var(--border2); border-radius:10px; padding:16px 20px; box-shadow:0 8px 32px rgba(0,0,0,0.4); min-width:260px; }
+  .row-popup { display:none; position:fixed; z-index:1000; background:var(--surface2); border:1px solid var(--border2); border-radius:10px; padding:16px 20px; box-shadow:0 8px 32px rgba(0,0,0,0.4); min-width:260px; }
   .row-popup.active { display:block; }
   .row-popup-title { font-family:var(--font-mono); font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; }
   .row-popup-car { font-family:var(--font-head); font-size:14px; color:var(--text); margin-bottom:14px; }
@@ -850,7 +850,7 @@ init();
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       Telegram
     </a>
-    <button id="popupEmail" onclick="openContactModalWithMsg()" class="btn-tg" style="border:none;cursor:pointer;display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:8px;font-size:11px;font-weight:600;font-family:'Unbounded',sans-serif;background:#1a2a3a;color:var(--accent);border:1px solid #2a4a5a">
+    <button id="popupEmail" onclick="closePopup();openContactModalWithMsg()" class="btn-tg" style="border:none;cursor:pointer;display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:8px;font-size:11px;font-weight:600;font-family:'Unbounded',sans-serif;background:#1a2a3a;color:var(--accent);border:1px solid #2a4a5a">
       ✉️ Email
     </button>
   </div>
