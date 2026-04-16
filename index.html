@@ -240,28 +240,10 @@
 
   <div class="filters">
     <div class="price-filter">
-      <span class="price-filter-label">Кяхта ₽</span>
-      <input type="number" id="pKyakhtaMin" placeholder="от" oninput="applyFilters()">
+      <span class="price-filter-label">Стоимость в РФ ₽</span>
+      <input type="number" id="pPriceMin" placeholder="от" oninput="applyFilters()">
       <span class="price-filter-sep">—</span>
-      <input type="number" id="pKyakhtaMax" placeholder="до" oninput="applyFilters()">
-    </div>
-    <div class="price-filter">
-      <span class="price-filter-label">Забайкальск ₽</span>
-      <input type="number" id="pZabaikalskMin" placeholder="от" oninput="applyFilters()">
-      <span class="price-filter-sep">—</span>
-      <input type="number" id="pZabaikalskMax" placeholder="до" oninput="applyFilters()">
-    </div>
-    <div class="price-filter">
-      <span class="price-filter-label">Уссурийск ₽</span>
-      <input type="number" id="pUssuriyskMin" placeholder="от" oninput="applyFilters()">
-      <span class="price-filter-sep">—</span>
-      <input type="number" id="pUssuriyskMax" placeholder="до" oninput="applyFilters()">
-    </div>
-    <div class="price-filter">
-      <span class="price-filter-label">Александров ₽</span>
-      <input type="number" id="pAleksandrovMin" placeholder="от" oninput="applyFilters()">
-      <span class="price-filter-sep">—</span>
-      <input type="number" id="pAleksandrovMax" placeholder="до" oninput="applyFilters()">
+      <input type="number" id="pPriceMax" placeholder="до" oninput="applyFilters()">
     </div>
     <div class="price-filter">
       <span class="price-filter-label">Юань ¥</span>
@@ -339,7 +321,7 @@
     <table>
       <thead id="thead"></thead>
       <tbody id="tbody">
-        <tr><td colspan="12"><div class="loading"><div class="spinner"></div>Загрузка данных...</div></td></tr>
+        <tr><td colspan="10"><div class="loading"><div class="spinner"></div>Загрузка данных...</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -503,11 +485,13 @@ function populateSelect(id, values) {
 function gv(id) { return document.getElementById(id).value; }
 function gn(id) { const v = document.getElementById(id).value; return v === '' ? null : Number(v); }
 
-const COL_KEYS = ['country','brand','model','engine','drive','trans','body','kyakhta','zabaikalsk','ussuriysk','aleksandrov','yuan'];
+const COL_KEYS = ['country','brand','model','engine','drive','trans','body','minPrice','yuan',''];
 
 function getColVal(d, col) {
+  if (col === 7) return minCityPrice(d);
+  if (col === 8) return d.yuan;
   const v = d[COL_KEYS[col]];
-  return [3,7,8,9,10,11].includes(col) ? (v == null ? null : parseFloat(v)||null) : (v||'');
+  return [3].includes(col) ? (v == null ? null : parseFloat(v)||null) : (v||'');
 }
 
 function inRange(val, min, max) {
@@ -518,15 +502,42 @@ function inRange(val, min, max) {
   return true;
 }
 
+function minCityPrice(d) {
+  const prices = [d.kyakhta, d.zabaikalsk, d.ussuriysk, d.aleksandrov].filter(v => v != null);
+  if (!prices.length) return null;
+  return Math.min(...prices);
+}
+
+function minCityName(d) {
+  const map = [
+    [d.kyakhta, 'Кяхта'],
+    [d.zabaikalsk, 'Забайкальск'],
+    [d.ussuriysk, 'Уссурийск'],
+    [d.aleksandrov, 'Александров'],
+  ].filter(([v]) => v != null);
+  if (!map.length) return '';
+  map.sort((a,b) => a[0]-b[0]);
+  return map[0][1];
+}
+
+function toggleCityRow(id) {
+  const el = document.getElementById('city-' + id);
+  const btn = document.getElementById('btn-' + id);
+  if (el.style.display === 'none') {
+    el.style.display = 'table-row';
+    btn.textContent = '▲';
+  } else {
+    el.style.display = 'none';
+    btn.textContent = '▼';
+  }
+}
+
 function applyFilters() {
   const search  = gv('search').toLowerCase();
   const country = gv('fCountry'), brand = gv('fBrand'), body = gv('fBody');
   const drive   = gv('fDrive'),   trans = gv('fTrans'), engine = gv('fEngine'), model = gv('fModel');
-  const kMin = gn('pKyakhtaMin'),    kMax = gn('pKyakhtaMax');
-  const zMin = gn('pZabaikalskMin'), zMax = gn('pZabaikalskMax');
-  const uMin = gn('pUssuriyskMin'),  uMax = gn('pUssuriyskMax');
-  const aMin = gn('pAleksandrovMin'),aMax = gn('pAleksandrovMax');
-  const yMin = gn('pYuanMin'),       yMax = gn('pYuanMax');
+  const kMin = gn('pPriceMin'), kMax = gn('pPriceMax');
+  const yMin = gn('pYuanMin'), yMax = gn('pYuanMax');
 
   let filtered = allData.filter(d => {
     if (search  && !(d.brand+' '+d.model).toLowerCase().includes(search)) return false;
@@ -537,10 +548,7 @@ function applyFilters() {
     if (trans   && d.trans   !== trans)   return false;
     if (engine  && d.engine  !== engine)  return false;
     if (model   && d.model   !== model)   return false;
-    if (!inRange(d.kyakhta,    kMin, kMax)) return false;
-    if (!inRange(d.zabaikalsk, zMin, zMax)) return false;
-    if (!inRange(d.ussuriysk,  uMin, uMax)) return false;
-    if (!inRange(d.aleksandrov,aMin, aMax)) return false;
+    if (!inRange(minCityPrice(d), kMin, kMax)) return false;
     if (!inRange(d.yuan,       yMin, yMax)) return false;
     return true;
   });
@@ -558,7 +566,7 @@ function applyFilters() {
 }
 
 
-const COLS = ['Страна бренда','Марка','Модель','Объём','Привод','Трансмиссия','Кузов','Кяхта, ₽','Забайкальск, ₽','Уссурийск, ₽','Александров, ₽','Цена в КНР, ¥'];
+const COLS = ['Страна бренда','Марка','Модель','Объём','Привод','Трансмиссия','Кузов','Стоимость в РФ','Цена в КНР, ¥',''];
 
 function renderTable(data) {
   document.getElementById('thead').innerHTML = '<tr>' + COLS.map((c,i) => {
@@ -567,7 +575,8 @@ function renderTable(data) {
   }).join('') + '</tr>';
 
   const tbody = document.getElementById('tbody');
-  if (!data.length) { tbody.innerHTML = `<tr><td colspan="12"><div class="empty">Ничего не найдено</div></td></tr>`; return; }
+  _rowIdx = 0;
+  if (!data.length) { tbody.innerHTML = `<tr><td colspan="10"><div class="empty">Ничего не найдено</div></td></tr>`; return; }
 
   // Группировка по типу кузова (только если нет активной сортировки)
   let rows = '';
@@ -588,7 +597,7 @@ function renderTable(data) {
       return av - bv;
     });
     sortedKeys.forEach(key => {
-      rows += `<tr><td colspan="12" style="background:var(--surface2);padding:8px 14px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);border-bottom:1px solid var(--border2);">${key} <span style="color:var(--muted);font-size:10px;">(${groups[key].length})</span></td></tr>`;
+      rows += `<tr><td colspan="10" style="background:var(--surface2);padding:8px 14px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);border-bottom:1px solid var(--border2);">${key} <span style="color:var(--muted);font-size:10px;">(${groups[key].length})</span></td></tr>`;
       rows += groups[key].map(d => rowHtml(d)).join('');
     });
   } else {
@@ -597,10 +606,11 @@ function renderTable(data) {
   tbody.innerHTML = rows;
 }
 
+let _rowIdx = 0;
 function rowHtml(d) {
-  const msg = encodeURIComponent(`Здравствуйте! Хочу сделать заявку на автомобиль: ${d.brand} ${d.model}${d.engine ? ', ' + d.engine : ''}${d.body ? ', ' + d.body : ''}.`);
-  const vkUrl = `https://vk.com/im?sel=-abappru&text=${msg}`;
-  const tgUrl = `https://t.me/abappconnect?text=${msg}`;
+  const id = _rowIdx++;
+  const minP = minCityPrice(d);
+  const minN = minCityName(d);
   return `<tr>
     <td style="color:var(--muted);font-size:12px;">${d.country||'—'}</td>
     <td class="brand">${d.brand}</td>
@@ -609,13 +619,23 @@ function rowHtml(d) {
     <td>${d.drive||'—'}</td>
     <td style="font-family:var(--font-mono);font-size:12px;">${d.trans||'—'}</td>
     <td><span class="badge ${badgeClass(d.body)}">${d.body||'—'}</span></td>
-    <td class="price">${fmt(d.kyakhta)}</td>
-    <td class="price">${fmt(d.zabaikalsk)}</td>
-    <td class="price">${fmt(d.ussuriysk)}</td>
-    <td class="price">${fmt(d.aleksandrov)}</td>
+    <td class="price" style="white-space:nowrap">
+      ${minP != null ? `<span style="color:var(--accent2)">${fmt(minP)}</span> <span style="color:var(--muted);font-size:10px;">${minN}</span>` : '—'}
+      <button id="btn-${id}" onclick="event.stopPropagation();toggleCityRow(${id})" style="margin-left:6px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 4px;vertical-align:middle;">▼</button>
+    </td>
     <td class="price-yuan">${fmtY(d.yuan)}</td>
+    <td></td>
+  </tr>
+  <tr id="city-${id}" style="display:none;background:var(--surface2);">
+    <td colspan="10" style="padding:8px 14px 10px 14px;">
+      <div style="display:flex;gap:24px;font-family:var(--font-mono);font-size:12px;flex-wrap:wrap;">
+        <span><span style="color:var(--muted)">Кяхта:</span> <span style="color:var(--accent2)">${fmt(d.kyakhta)}</span></span>
+        <span><span style="color:var(--muted)">Забайкальск:</span> <span style="color:var(--accent2)">${fmt(d.zabaikalsk)}</span></span>
+        <span><span style="color:var(--muted)">Уссурийск:</span> <span style="color:var(--accent2)">${fmt(d.ussuriysk)}</span></span>
+        <span><span style="color:var(--muted)">Александров:</span> <span style="color:var(--accent2)">${fmt(d.aleksandrov)}</span></span>
+      </div>
+    </td>
   </tr>`;
-  // attach click after render via event delegation (handled globally)
 }
 
 function renderStats(data) {
@@ -631,9 +651,7 @@ function resetFilters() {
   ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  ['pKyakhtaMin','pKyakhtaMax','pZabaikalskMin','pZabaikalskMax',
-   'pUssuriyskMin','pUssuriyskMax','pAleksandrovMin','pAleksandrovMax',
-   'pYuanMin','pYuanMax'].forEach(id => {
+  ['pPriceMin','pPriceMax','pYuanMin','pYuanMax'].forEach(id => {
     document.getElementById(id).value = '';
   });
   sortCol = null;
