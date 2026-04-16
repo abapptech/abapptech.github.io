@@ -761,9 +761,10 @@ document.addEventListener('click', function(e) {
     }
     popup.classList.add('active');
     e.stopPropagation();
-  } else if (!e.target.closest('#rowPopup') && !e.target.closest('#contact-modal')) {
+  } else if (!e.target.closest('#rowPopup') && !e.target.closest('#contact-modal') && !window._popupEmailClicked) {
     closePopup();
   }
+  window._popupEmailClicked = false;
 });
 
 function toggleFilters() {
@@ -844,6 +845,7 @@ init();
   }
 
   function openContactModalFromPopup() {
+    window._popupEmailClicked = true;
     console.log('openContactModalFromPopup called');
     const copyText = document.getElementById('popupCopyText');
     const msg = copyText ? copyText.textContent : 'Здравствуйте! Интересует авто из Китая под ключ. Прошу связаться со мной.';
