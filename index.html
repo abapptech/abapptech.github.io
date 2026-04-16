@@ -628,6 +628,7 @@ function calcPrices(pCny, cc, kw) {
   };
   try {
     const r = calculate(p);
+    console.log('calculate result:', r);
     return {
       kyakhta:     Math.round(r.kyakEvac),
       zabaikalsk:  Math.round(r.zabaikalsk),
@@ -635,6 +636,7 @@ function calcPrices(pCny, cc, kw) {
       aleksandrov: Math.round(r.alexandrov),
     };
   } catch(e) {
+    console.error('calculate error:', e);
     return null;
   }
 }
@@ -667,7 +669,9 @@ async function loadData() {
   applyFilters();
 
   // ── Шаг 3: Локальный расчёт цен (без внешних запросов) ──
+  console.log('vtbRate:', vtbRate, 'cnyCbrRate:', cnyCbrRate, 'eurRate:', eurRate);
   const toCalc = result.filter(d => d.yuan);
+  console.log('toCalc length:', toCalc.length);
   if (toCalc.length > 0) {
     toCalc.forEach(d => {
       const prices = calcPrices(d.yuan, parseCC(d.engine), 110);
