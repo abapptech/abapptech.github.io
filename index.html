@@ -832,7 +832,8 @@ function minCityName(d) {
 function toggleCityRow(id) {
   const el = document.getElementById('city-' + id);
   const btn = document.getElementById('btn-' + id);
-  if (el.style.display === 'none') {
+  const isHidden = el.style.display === 'none' || el.style.display === '';
+  if (isHidden) {
     el.style.display = 'table-row';
     btn.textContent = '▲';
   } else {
