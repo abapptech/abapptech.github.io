@@ -377,7 +377,7 @@
     <table>
       <thead id="thead"></thead>
       <tbody id="tbody">
-        <tr><td colspan="9"><div class="loading"><div class="spinner"></div>Загрузка данных...</div></td></tr>
+        <tr><td colspan="10"><div class="loading"><div class="spinner"></div>Загрузка данных...</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -794,7 +794,7 @@ function populateSelect(id, values) {
 function gv(id) { return document.getElementById(id).value; }
 function gn(id) { const v = document.getElementById(id).value; return v === '' ? null : Number(v); }
 
-const COL_KEYS = ['country','brand','model','engine','drive','trans','body','minPrice','yuan'];
+const COL_KEYS = ['country','brand','model','engine','drive','trans','body','minPrice','yuan',''];
 
 function getColVal(d, col) {
   if (col === 7) return minCityPrice(d);
@@ -832,6 +832,7 @@ function minCityName(d) {
 function toggleCityRow(id) {
   const el = document.getElementById('city-' + id);
   const btn = document.getElementById('btn-' + id);
+  if (!el) return;
   const isHidden = el.style.display === 'none' || el.style.display === '';
   if (isHidden) {
     el.style.display = 'table-row';
@@ -876,7 +877,7 @@ function applyFilters() {
 }
 
 
-const COLS = ['Страна бренда','Марка','Модель','Объём','Привод','Трансмиссия','Кузов','Стоимость в РФ','Цена в КНР, ¥'];
+const COLS = ['Страна бренда','Марка','Модель','Объём','Привод','Трансмиссия','Кузов','Стоимость в РФ','Цена в КНР, ¥',''];
 
 function renderTable(data) {
   document.getElementById('thead').innerHTML = '<tr>' + COLS.map((c,i) => {
@@ -886,7 +887,7 @@ function renderTable(data) {
 
   const tbody = document.getElementById('tbody');
   _rowIdx = 0;
-  if (!data.length) { tbody.innerHTML = `<tr><td colspan="9"><div class="empty">Ничего не найдено</div></td></tr>`; return; }
+  if (!data.length) { tbody.innerHTML = `<tr><td colspan="10"><div class="empty">Ничего не найдено</div></td></tr>`; return; }
 
   // Группировка по типу кузова (только если нет активной сортировки)
   let rows = '';
@@ -907,7 +908,7 @@ function renderTable(data) {
       return av - bv;
     });
     sortedKeys.forEach(key => {
-      rows += `<tr><td colspan="9" style="background:var(--surface2);padding:8px 14px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);border-bottom:1px solid var(--border2);">${key} <span style="color:var(--muted);font-size:10px;">(${groups[key].length})</span></td></tr>`;
+      rows += `<tr><td colspan="10" style="background:var(--surface2);padding:8px 14px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);border-bottom:1px solid var(--border2);">${key} <span style="color:var(--muted);font-size:10px;">(${groups[key].length})</span></td></tr>`;
       rows += groups[key].map(d => rowHtml(d)).join('');
     });
   } else {
@@ -934,9 +935,10 @@ function rowHtml(d) {
       <button id="btn-${id}" onclick="event.stopPropagation();toggleCityRow(${id})" style="margin-left:6px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 4px;vertical-align:middle;">▼</button>
     </td>
     <td class="price-yuan">${fmtY(d.yuan)}</td>
+    <td></td>
   </tr>
   <tr id="city-${id}" style="display:none;background:var(--surface2);">
-    <td colspan="9" style="padding:8px 14px 10px 14px;">
+    <td colspan="10" style="padding:8px 14px 10px 14px;">
       <div style="display:flex;gap:24px;font-family:var(--font-mono);font-size:12px;flex-wrap:wrap;">
         <span><span style="color:var(--muted)">Кяхта:</span> <span style="color:var(--accent2)">${fmt(d.kyakhta)}</span></span>
         <span><span style="color:var(--muted)">Забайкальск:</span> <span style="color:var(--accent2)">${fmt(d.zabaikalsk)}</span></span>
