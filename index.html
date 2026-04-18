@@ -990,9 +990,25 @@ document.addEventListener('click', function(e) {
     const brand  = cells[1].textContent.trim();
     const model  = cells[2].textContent.trim();
     const engine = cells[3].textContent.trim();
+    const drive  = cells[4].textContent.trim();
+    const trans  = cells[5].textContent.trim();
     const body   = cells[6].textContent.trim();
     const msg = encodeURIComponent(`Здравствуйте! Хочу сделать заявку на автомобиль: ${brand} ${model}${engine && engine!=='—' ? ', '+engine : ''}${body && body!=='—' ? ', '+body : ''}.`);
     document.getElementById('popupCar').textContent = `${brand} ${model}`;
+    // Характеристики
+    let specs = [];
+    if (engine && engine !== '—') specs.push(`🔧 ${engine}`);
+    if (drive  && drive  !== '—') specs.push(`⚙️ ${drive}`);
+    if (trans  && trans  !== '—') specs.push(`🔄 ${trans}`);
+    if (body   && body   !== '—') specs.push(`🚗 ${body}`);
+    let specsEl = document.getElementById('popupSpecs');
+    if (!specsEl) {
+      specsEl = document.createElement('div');
+      specsEl.id = 'popupSpecs';
+      specsEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;';
+      document.getElementById('popupCar').after(specsEl);
+    }
+    specsEl.innerHTML = specs.map(s => `<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 7px;">${s}</span>`).join('');
     const photoQuery = encodeURIComponent(`${brand} ${model} 3-5 лет из китая фото`);
     document.getElementById('popupPhoto').href = `https://www.google.com/search?tbm=isch&q=${photoQuery}`;
     const msgDecoded = decodeURIComponent(msg);
