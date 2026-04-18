@@ -1011,6 +1011,10 @@ document.addEventListener('click', function(e) {
     const drive  = cells[4].textContent.trim();
     const trans  = cells[5].textContent.trim();
     const body   = cells[6].textContent.trim();
+    // Цены по городам из раскрытого инлайн блока
+    const rowId = cells[7] ? cells[7].querySelector('button[id^="btn-"]') : null;
+    const rid = rowId ? rowId.id.replace('btn-','') : null;
+    const cityInline = rid ? document.getElementById('city-inline-' + rid) : null;
     const msg = encodeURIComponent(`Здравствуйте! Хочу сделать заявку на автомобиль: ${brand} ${model}${engine && engine!=='—' ? ', '+engine : ''}${body && body!=='—' ? ', '+body : ''}.`);
     document.getElementById('popupCar').textContent = `${brand} ${model}`;
     // Характеристики
@@ -1027,6 +1031,23 @@ document.addEventListener('click', function(e) {
       document.getElementById('popupCar').after(specsEl);
     }
     specsEl.innerHTML = specs.map(s => `<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 7px;">${s}</span>`).join('');
+    // Цены по городам в попапе
+    let popupCities = document.getElementById('popupCities');
+    if (!popupCities) {
+      popupCities = document.createElement('div');
+      popupCities.id = 'popupCities';
+      popupCities.style.cssText = 'margin-bottom:14px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-family:var(--font-mono);font-size:11px;';
+      document.getElementById('popupSpecs').after(popupCities);
+    }
+    if (cityInline) {
+      const divs = cityInline.querySelectorAll('div');
+      popupCities.style.display = 'block';
+      popupCities.innerHTML = '<div style="color:var(--muted);font-size:10px;margin-bottom:6px;letter-spacing:.05em;">СТОИМОСТЬ В РФ</div>' +
+        Array.from(divs).map(d => d.outerHTML).join('');
+    } else {
+      popupCities.style.display = 'none';
+    }
+
     const photoQuery = encodeURIComponent(`${brand} ${model} 3-5 лет из китая фото`);
     document.getElementById('popupPhoto').href = `https://www.google.com/search?tbm=isch&q=${photoQuery}`;
     const msgDecoded = decodeURIComponent(msg);
