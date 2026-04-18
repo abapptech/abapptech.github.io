@@ -832,13 +832,17 @@ function minCityName(d) {
 function toggleCityRow(id) {
   const el = document.getElementById('city-' + id);
   const btn = document.getElementById('btn-' + id);
+  const inline = document.getElementById('city-inline-' + id);
   if (!el) return;
-  const isHidden = el.style.display === 'none' || el.style.display === '';
+  const isMob = window.innerWidth <= 600;
+  const target = isMob ? inline : el;
+  if (!target) return;
+  const isHidden = target.style.display === 'none' || target.style.display === '';
   if (isHidden) {
-    el.style.display = 'table-row';
+    target.style.display = isMob ? 'block' : 'table-row';
     btn.textContent = '▲';
   } else {
-    el.style.display = 'none';
+    target.style.display = 'none';
     btn.textContent = '▼';
   }
 }
@@ -933,6 +937,12 @@ function rowHtml(d) {
     <td class="price" style="white-space:nowrap">
       ${minP != null ? `<span style="color:var(--accent2)">${fmt(minP)}</span> <span style="color:var(--muted);font-size:10px;">${minN}</span>` : '—'}
       <button id="btn-${id}" onclick="event.stopPropagation();toggleCityRow(${id})" style="margin-left:6px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 4px;vertical-align:middle;">▼</button>
+      <div id="city-inline-${id}" style="display:none;margin-top:6px;font-family:var(--font-mono);font-size:11px;white-space:normal;">
+        <div style="color:var(--muted);margin-bottom:2px;">Кяхта: <span style="color:var(--accent2)">${fmt(d.kyakhta)}</span></div>
+        <div style="color:var(--muted);margin-bottom:2px;">Забайкальск: <span style="color:var(--accent2)">${fmt(d.zabaikalsk)}</span></div>
+        <div style="color:var(--muted);margin-bottom:2px;">Уссурийск: <span style="color:var(--accent2)">${fmt(d.ussuriysk)}</span></div>
+        <div style="color:var(--muted);">Александров: <span style="color:var(--accent2)">${fmt(d.aleksandrov)}</span></div>
+      </div>
     </td>
     <td class="price-yuan">${fmtY(d.yuan)}</td>
     <td></td>
