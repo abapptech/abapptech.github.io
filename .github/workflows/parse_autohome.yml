@@ -1,0 +1,78 @@
+name: Parse autohome catalog
+
+on:
+  schedule:
+    # каждый понедельник в 02:00 UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      years:
+        description: 'Максимальный возраст авто (лет)'
+        required: false
+        default: '3'
+      reset:
+        description: 'Сбросить состояние и начать обход заново'
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: autohome-parser
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: autohome-parser
+
+jobs:
+  parse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Restore crawl state
+        uses: actions/cache/restore@v4
+        with:
+          path: autohome-parser/state.json
+          key: autohome-state-${{ github.run_id }}
+          restore-keys: |
+            autohome-state-
+
+      - name: Run parser
+        run: |
+          python main.py \
+            --years "${{ github.event.inputs.years || '3' }}" \
+            --time-budget 300 \
+            ${{ github.event.inputs.reset == 'true' && '--reset' || '' }}
+
+      - name: Save crawl state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: autohome-parser/state.json
+          key: autohome-state-${{ github.run_id }}
+
+      - name: Commit data
+        if: always()
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add data/
+          if git diff --staged --quiet; then
+            echo "Изменений нет"
+          else
+            git commit -m "chore(autohome): обновление каталога ($(date -u +%Y-%m-%d))"
+            git pull --rebase --autostash || true
+            git push
+          fi
