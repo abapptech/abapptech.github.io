@@ -181,7 +181,10 @@
     td:nth-child(3) { font-size: 12px; }
 
     /* Цена заметнее */
-    td:nth-child(8) .price, td:nth-child(8) { font-size: 13px; }
+    td:nth-child(9) .price, td:nth-child(9) { font-size: 13px; }
+
+    /* Возраст — компактная колонка */
+    td:nth-child(8) { font-size: 11px; white-space: nowrap; }
 
     /* Мобильная панель сверху с кнопкой Фильтры */
     #mobile-top-bar { display: flex !important; order: 0; }
@@ -314,6 +317,7 @@
     <select id="fDrive"><option value="">Привод</option></select>
     <select id="fTrans"><option value="">Трансмиссия</option></select>
     <select id="fBody"><option value="">Все кузова</option></select>
+    <select id="fAge"><option value="">Любой возраст</option></select>
     <button onclick="resetFilters()" style="height:38px;padding:0 16px;background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);font-family:var(--font-mono);font-size:12px;cursor:pointer;transition:all 0.15s;white-space:nowrap;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">✕ Сбросить фильтры</button>
   </div>
 
@@ -401,7 +405,7 @@
     <table>
       <thead id="thead"></thead>
       <tbody id="tbody">
-        <tr><td colspan="10"><div class="loading"><div class="spinner"></div>Загрузка данных...</div></td></tr>
+        <tr><td colspan="11"><div class="loading"><div class="spinner"></div>Загрузка данных...</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -454,6 +458,14 @@ async function loadRates() {
 
 // ── Worker API ────────────────────────────────────────────────────────────────
 const WORKER_URL = 'https://abapp-calc.donditov.workers.dev/calc';
+
+// "3-5 лет" → age='mid' (текущая логика калькулятора), "5+ лет" → age='old'.
+// Пустое/неопознанное значение — 'mid' (сохраняет старое поведение для строк без возраста).
+function ageToCalcParam(rawAge) {
+  const t = String(rawAge || '').toLowerCase();
+  if (t.includes('5+') || t.includes('старше')) return 'old';
+  return 'mid';
+}
 
 function parseCC(s) {
   if (!s) return 1500;
@@ -754,12 +766,12 @@ function calculate(p) {
   };
 }
 
-function calcPrices(pCny, cc, kw) {
+function calcPrices(pCny, cc, kw, age) {
   if (!pCny) return null;
   const p = {
     pCny, pMax: pCny,
     rVtb: vtbRate, rCbr: cnyCbrRate, rEur: eurRate,
-    etype: 'ice', age: 'mid',
+    etype: 'ice', age: age || 'mid',
     cc: cc || 1500, kw: kw || 110, emKw: 0,
     comm: 11000, deliveryManual: 4000,   // фикс. перевозка 4 000 ¥ по КНР (приближение для матрицы)
     deliveryIncluded: false, toBorderOnly: false,
@@ -964,6 +976,7 @@ async function loadData() {
     drive:   findCol(['тип привода', 'привод', 'drive']),
     trans:   findCol(['тип трансмиссии', 'трансмиссия', 'кпп', 'transmission']),
     body:    findCol(['тип кузова', 'кузов', 'body']),
+    age:     findCol(['возраст', 'age']),
   };
 
   // Цена в юанях: ищем по тексту, если не нашли — берём первый number-столбец
@@ -1004,7 +1017,7 @@ async function loadData() {
     console.error('[MATRIX] Не найдены обязательные колонки:', missing);
     const tbody = document.getElementById('tbody');
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="10" style="color:#f87171;padding:24px;text-align:center;font-family:var(--font-mono);font-size:12px">Не удалось определить структуру таблицы. Не найдены: ${missing.join(', ')}.<br>Откройте консоль (F12) — там список заголовков.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11" style="color:#f87171;padding:24px;text-align:center;font-family:var(--font-mono);font-size:12px">Не удалось определить структуру таблицы. Не найдены: ${missing.join(', ')}.<br>Откройте консоль (F12) — там список заголовков.</td></tr>`;
     }
     return [];
   }
@@ -1038,6 +1051,7 @@ async function loadData() {
       drive:  map.drive  ? val(map.drive.idx)  : '',
       trans:  map.trans  ? val(map.trans.idx)  : '',
       body:   map.body   ? val(map.body.idx)   : '',
+      age:    map.age    ? val(map.age.idx)    : '',
       yuan:   num(map.yuan.idx),
       kyakhta: null, zabaikalsk: null, ussuriysk: null, aleksandrov: null,
     });
@@ -1052,7 +1066,7 @@ async function loadData() {
   const toCalc = result.filter(d => d.yuan);
   if (toCalc.length > 0) {
     toCalc.forEach(d => {
-      const prices = calcPrices(d.yuan, parseCC(d.engine), 110);
+      const prices = calcPrices(d.yuan, parseCC(d.engine), 110, ageToCalcParam(d.age));
       if (prices) {
         d.kyakhta     = prices.kyakhta;
         d.zabaikalsk  = prices.zabaikalsk;
@@ -1088,11 +1102,11 @@ function populateSelect(id, values) {
 function gv(id) { return document.getElementById(id).value; }
 function gn(id) { const v = document.getElementById(id).value; return v === '' ? null : Number(v); }
 
-const COL_KEYS = ['country','brand','model','engine','drive','trans','body','minPrice','yuan',''];
+const COL_KEYS = ['country','brand','model','engine','drive','trans','body','age','minPrice','yuan',''];
 
 function getColVal(d, col) {
-  if (col === 7) return minCityPrice(d);
-  if (col === 8) return d.yuan;
+  if (col === 8) return minCityPrice(d);
+  if (col === 9) return d.yuan;
   const v = d[COL_KEYS[col]];
   return [3].includes(col) ? (v == null ? null : parseFloat(v)||null) : (v||'');
 }
@@ -1145,6 +1159,7 @@ function applyFilters() {
   const search  = gv('search').toLowerCase();
   const country = gv('fCountry'), brand = gv('fBrand'), body = gv('fBody');
   const drive   = gv('fDrive'),   trans = gv('fTrans'), engine = gv('fEngine'), model = gv('fModel');
+  const age     = gv('fAge');
   const kMin = gn('pPriceMin'), kMax = gn('pPriceMax');
   const yMin = gn('pYuanMin'), yMax = gn('pYuanMax');
 
@@ -1157,6 +1172,7 @@ function applyFilters() {
     if (trans   && d.trans   !== trans)   return false;
     if (engine  && d.engine  !== engine)  return false;
     if (model   && d.model   !== model)   return false;
+    if (age     && d.age     !== age)     return false;
     if (!inRange(minCityPrice(d), kMin, kMax)) return false;
     if (!inRange(d.yuan,       yMin, yMax)) return false;
     return true;
@@ -1175,7 +1191,7 @@ function applyFilters() {
 }
 
 
-const COLS = ['Страна бренда','Марка','Модель','Объём','Привод','Трансмиссия','Кузов','Стоимость в РФ','Цена в КНР, ¥',''];
+const COLS = ['Страна бренда','Марка','Модель','Объём','Привод','Трансмиссия','Кузов','Возраст','Стоимость в РФ','Цена в КНР, ¥',''];
 
 function renderTable(data) {
   document.getElementById('thead').innerHTML = '<tr>' + COLS.map((c,i) => {
@@ -1185,7 +1201,7 @@ function renderTable(data) {
 
   const tbody = document.getElementById('tbody');
   _rowIdx = 0;
-  if (!data.length) { tbody.innerHTML = `<tr><td colspan="10"><div class="empty">Ничего не найдено</div></td></tr>`; return; }
+  if (!data.length) { tbody.innerHTML = `<tr><td colspan="11"><div class="empty">Ничего не найдено</div></td></tr>`; return; }
 
   // Группировка по типу кузова (только если нет активной сортировки)
   let rows = '';
@@ -1206,7 +1222,7 @@ function renderTable(data) {
       return av - bv;
     });
     sortedKeys.forEach(key => {
-      rows += `<tr><td colspan="10" style="background:var(--surface2);padding:8px 14px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);border-bottom:1px solid var(--border2);">${key} <span style="color:var(--muted);font-size:10px;">(${groups[key].length})</span></td></tr>`;
+      rows += `<tr><td colspan="11" style="background:var(--surface2);padding:8px 14px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);border-bottom:1px solid var(--border2);">${key} <span style="color:var(--muted);font-size:10px;">(${groups[key].length})</span></td></tr>`;
       rows += groups[key].map(d => rowHtml(d)).join('');
     });
   } else {
@@ -1228,6 +1244,7 @@ function rowHtml(d) {
     <td>${d.drive||'—'}</td>
     <td style="font-family:var(--font-mono);font-size:12px;">${d.trans||'—'}</td>
     <td><span class="badge ${badgeClass(d.body)}">${d.body||'—'}</span></td>
+    <td style="color:var(--muted);font-size:12px;white-space:nowrap;">${d.age||'—'}</td>
     <td class="price" style="white-space:nowrap">
       ${minP != null ? `<span style="color:var(--accent2)">${fmt(minP)}</span> <span style="color:var(--muted);font-size:10px;">${minN}</span>` : '—'}
       <button id="btn-${id}" onclick="event.stopPropagation();toggleCityRow(${id})" style="margin-left:6px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 4px;vertical-align:middle;">▼</button>
@@ -1242,7 +1259,7 @@ function rowHtml(d) {
     <td></td>
   </tr>
   <tr id="city-${id}" style="display:none;background:var(--surface2);">
-    <td colspan="10" style="padding:8px 14px 10px 14px;">
+    <td colspan="11" style="padding:8px 14px 10px 14px;">
       <div style="display:flex;gap:24px;font-family:var(--font-mono);font-size:12px;flex-wrap:wrap;">
         <span><span style="color:var(--muted)">Кяхта:</span> <span style="color:var(--accent2)">${fmt(d.kyakhta)}</span></span>
         <span><span style="color:var(--muted)">Забайкальск:</span> <span style="color:var(--accent2)">${fmt(d.zabaikalsk)}</span></span>
@@ -1270,7 +1287,7 @@ function setSort(col) { sortDir = sortCol===col ? sortDir*-1 : 1; sortCol=col; a
 
 function resetFilters() {
   document.getElementById('search').value = '';
-  ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody'].forEach(id => {
+  ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody','fAge'].forEach(id => {
     document.getElementById(id).value = '';
   });
   ['pPriceMin','pPriceMax','pYuanMin','pYuanMax'].forEach(id => {
@@ -1294,7 +1311,7 @@ function toggleMobileFilters() {
 function hasActiveFilters() {
   const search = document.getElementById('search');
   if (search && search.value.trim()) return true;
-  const sel = ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody'];
+  const sel = ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody','fAge'];
   for (const id of sel) {
     const el = document.getElementById(id);
     if (el && el.value) return true;
@@ -1437,6 +1454,7 @@ async function init() {
     populateSelect('fDrive',   allData.map(d=>d.drive));
     populateSelect('fTrans',   allData.map(d=>d.trans));
     populateSelect('fEngine',  allData.map(d=>d.engine));
+    populateSelect('fAge',     allData.map(d=>d.age));
 
     document.getElementById('fBrand').addEventListener('change', () => {
       const brand = gv('fBrand');
@@ -1458,13 +1476,13 @@ async function init() {
       applyFilters();
     });
 
-    ['search','fModel','fBody','fDrive','fTrans','fEngine'].forEach(id => {
+    ['search','fModel','fBody','fDrive','fTrans','fEngine','fAge'].forEach(id => {
       document.getElementById(id).addEventListener(id==='search'?'input':'change', applyFilters);
     });
     applyFilters();
   } catch(e) {
     document.getElementById('tbody').innerHTML =
-      `<tr><td colspan="12"><div class="empty">Ошибка загрузки. Убедитесь, что таблица открыта для всех по ссылке.</div></td></tr>`;
+      `<tr><td colspan="11"><div class="empty">Ошибка загрузки. Убедитесь, что таблица открыта для всех по ссылке.</div></td></tr>`;
   }
 }
 init();
