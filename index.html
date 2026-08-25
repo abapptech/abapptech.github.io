@@ -313,11 +313,12 @@
     <select id="fCountry"><option value="">Все страны</option></select>
     <select id="fBrand"><option value="">Все бренды</option></select>
     <select id="fModel"><option value="">Все модели</option></select>
+    <select id="fEngineType"><option value="">Тип двигателя</option></select>
     <select id="fEngine"><option value="">Объём ДВС</option></select>
+    <select id="fAge"><option value="">Любой возраст</option></select>
     <select id="fDrive"><option value="">Привод</option></select>
     <select id="fTrans"><option value="">Трансмиссия</option></select>
     <select id="fBody"><option value="">Все кузова</option></select>
-    <select id="fAge"><option value="">Любой возраст</option></select>
     <button onclick="resetFilters()" style="height:38px;padding:0 16px;background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);font-family:var(--font-mono);font-size:12px;cursor:pointer;transition:all 0.15s;white-space:nowrap;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">✕ Сбросить фильтры</button>
   </div>
 
@@ -766,13 +767,24 @@ function calculate(p) {
   };
 }
 
-function calcPrices(pCny, cc, kw, age) {
+// "Электромобиль" и "Последовательный гибрид" — в калькуляторе это ОДИН и тот же
+// etype='electric' (у него единая формула пошлины/акциза/НДС). Всё остальное (в т.ч.
+// пустое значение) — 'ice' (бензин/дизель, без изменений в поведении по умолчанию).
+function engineTypeToCalcParam(rawType) {
+  const t = String(rawType || '').toLowerCase();
+  if (t.includes('электро') || t.includes('гибрид')) return 'electric';
+  return 'ice';
+}
+
+function calcPrices(pCny, cc, kw, age, etype, msrp, emKw) {
   if (!pCny) return null;
+  // Для электро/гибрида таможенная база — MSRP (если он указан), иначе средняя цена в юанях
+  const pMax = (etype === 'electric' && msrp) ? msrp : pCny;
   const p = {
-    pCny, pMax: pCny,
+    pCny, pMax,
     rVtb: vtbRate, rCbr: cnyCbrRate, rEur: eurRate,
-    etype: 'ice', age: age || 'mid',
-    cc: cc || 1500, kw: kw || 110, emKw: 0,
+    etype: etype || 'ice', age: age || 'mid',
+    cc: cc || 1500, kw: kw || 110, emKw: emKw || 0,
     comm: 11000, deliveryManual: 4000,   // фикс. перевозка 4 000 ¥ по КНР (приближение для матрицы)
     deliveryIncluded: false, toBorderOnly: false,
     distMan: 0, distErl: 0, distSui: 0, distHor: 0,
@@ -977,6 +989,9 @@ async function loadData() {
     trans:   findCol(['тип трансмиссии', 'трансмиссия', 'кпп', 'transmission']),
     body:    findCol(['тип кузова', 'кузов', 'body']),
     age:     findCol(['возраст', 'age']),
+    etype:   findCol(['тип двигателя', 'двигатель тип', 'engine type', 'тип мотора']),
+    msrp:    findCol(['msrp', 'рыночная цена', 'цена по прайсу', 'рыночная стоимость']),
+    emKw:    findCol(['мощность эд', 'мощность электродвигателя', 'мощность эл двигателя', 'эд квт', 'emkw', 'электромотор квт']),
   };
 
   // Цена в юанях: ищем по тексту, если не нашли — берём первый number-столбец
@@ -1052,6 +1067,9 @@ async function loadData() {
       trans:  map.trans  ? val(map.trans.idx)  : '',
       body:   map.body   ? val(map.body.idx)   : '',
       age:    map.age    ? val(map.age.idx)    : '',
+      engineType: map.etype ? val(map.etype.idx) : '',
+      msrp:   map.msrp   ? num(map.msrp.idx)   : null,
+      emKw:   map.emKw   ? num(map.emKw.idx)   : null,
       yuan:   num(map.yuan.idx),
       kyakhta: null, zabaikalsk: null, ussuriysk: null, aleksandrov: null,
     });
@@ -1066,7 +1084,12 @@ async function loadData() {
   const toCalc = result.filter(d => d.yuan);
   if (toCalc.length > 0) {
     toCalc.forEach(d => {
-      const prices = calcPrices(d.yuan, parseCC(d.engine), 110, ageToCalcParam(d.age));
+      const prices = calcPrices(
+        d.yuan, parseCC(d.engine), 110,
+        ageToCalcParam(d.age),
+        engineTypeToCalcParam(d.engineType),
+        d.msrp, d.emKw
+      );
       if (prices) {
         d.kyakhta     = prices.kyakhta;
         d.zabaikalsk  = prices.zabaikalsk;
@@ -1160,6 +1183,7 @@ function applyFilters() {
   const country = gv('fCountry'), brand = gv('fBrand'), body = gv('fBody');
   const drive   = gv('fDrive'),   trans = gv('fTrans'), engine = gv('fEngine'), model = gv('fModel');
   const age     = gv('fAge');
+  const engineType = gv('fEngineType');
   const kMin = gn('pPriceMin'), kMax = gn('pPriceMax');
   const yMin = gn('pYuanMin'), yMax = gn('pYuanMax');
 
@@ -1173,6 +1197,7 @@ function applyFilters() {
     if (engine  && d.engine  !== engine)  return false;
     if (model   && d.model   !== model)   return false;
     if (age     && d.age     !== age)     return false;
+    if (engineType && d.engineType !== engineType) return false;
     if (!inRange(minCityPrice(d), kMin, kMax)) return false;
     if (!inRange(d.yuan,       yMin, yMax)) return false;
     return true;
@@ -1287,7 +1312,7 @@ function setSort(col) { sortDir = sortCol===col ? sortDir*-1 : 1; sortCol=col; a
 
 function resetFilters() {
   document.getElementById('search').value = '';
-  ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody','fAge'].forEach(id => {
+  ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody','fAge','fEngineType'].forEach(id => {
     document.getElementById(id).value = '';
   });
   ['pPriceMin','pPriceMax','pYuanMin','pYuanMax'].forEach(id => {
@@ -1311,7 +1336,7 @@ function toggleMobileFilters() {
 function hasActiveFilters() {
   const search = document.getElementById('search');
   if (search && search.value.trim()) return true;
-  const sel = ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody','fAge'];
+  const sel = ['fCountry','fBrand','fModel','fEngine','fDrive','fTrans','fBody','fAge','fEngineType'];
   for (const id of sel) {
     const el = document.getElementById(id);
     if (el && el.value) return true;
@@ -1455,6 +1480,7 @@ async function init() {
     populateSelect('fTrans',   allData.map(d=>d.trans));
     populateSelect('fEngine',  allData.map(d=>d.engine));
     populateSelect('fAge',     allData.map(d=>d.age));
+    populateSelect('fEngineType', allData.map(d=>d.engineType));
 
     document.getElementById('fBrand').addEventListener('change', () => {
       const brand = gv('fBrand');
@@ -1476,7 +1502,7 @@ async function init() {
       applyFilters();
     });
 
-    ['search','fModel','fBody','fDrive','fTrans','fEngine','fAge'].forEach(id => {
+    ['search','fModel','fBody','fDrive','fTrans','fEngine','fAge','fEngineType'].forEach(id => {
       document.getElementById(id).addEventListener(id==='search'?'input':'change', applyFilters);
     });
     applyFilters();
